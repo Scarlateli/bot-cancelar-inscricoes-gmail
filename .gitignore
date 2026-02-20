@@ -17,3 +17,7 @@ chrome_profile/
 
 # MacOS
 .DS_Store
+
+# Documentação pessoal de estudo
+EXPLICACAO_CODIGO.md
+HISTORICO_PROBLEMAS_E_SOLUCOES.md
