@@ -50,7 +50,3 @@ Pra parar a qualquer momento: `Ctrl+C`.
 - Selenium WebDriver
 - Chrome/Chromium
 
-## Documentação extra
-
-- [EXPLICACAO_CODIGO.md](EXPLICACAO_CODIGO.md) — explicação detalhada do código
-- [HISTORICO_PROBLEMAS_E_SOLUCOES.md](HISTORICO_PROBLEMAS_E_SOLUCOES.md) — problemas encontrados durante o desenvolvimento e como foram resolvidos
