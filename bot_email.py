@@ -47,6 +47,9 @@ def cancelar_inscricoes_gmail():
 
     wait = WebDriverWait(driver, 10)
 
+    # Timeout para carregamento de página (evita travar em loading infinito)
+    driver.set_page_load_timeout(10)
+
     # Inicializar contadores no início (antes do try) para evitar erro ao pressionar Ctrl+C
     inscricoes_canceladas = 0
     inscricoes_ignoradas = set()
@@ -245,8 +248,13 @@ def cancelar_inscricoes_gmail():
                         log.info("Cancelamento não confirmado. Pulando...")
 
                 # Recarregar a página para atualizar a lista
-                driver.refresh()
-                time.sleep(1)  # Otimizado: 2s → 1s (PRINCIPAL otimização!)
+                log.info("Recarregando página...")
+                try:
+                    driver.get("https://mail.google.com/mail/u/0/#sub")
+                except Exception:
+                    log.info("Timeout no carregamento, tentando parar e continuar...")
+                    driver.execute_script("window.stop();")
+                time.sleep(2)
 
             except Exception as e:
                 log.error(f"Erro: {str(e)}")

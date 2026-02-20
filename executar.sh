@@ -10,4 +10,4 @@ echo ""
 source venv/bin/activate
 
 # Executar o bot
-python bot_email.py
+python3 bot_email.py
