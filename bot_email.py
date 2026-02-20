@@ -4,6 +4,21 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
+import os
+import logging
+
+# Configurar logging (console + arquivo)
+log_dir = os.path.dirname(__file__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(message)s',
+    datefmt='%H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(log_dir, 'bot.log'), encoding='utf-8'),
+    ]
+)
+log = logging.getLogger(__name__)
 
 def cancelar_inscricoes_gmail():
     """
@@ -14,7 +29,6 @@ def cancelar_inscricoes_gmail():
     options.add_argument("--start-maximized")
 
     # Usar um perfil separado (não precisa fechar o Chrome normal)
-    import os
     profile_dir = os.path.join(os.path.dirname(__file__), 'chrome_profile')
     options.add_argument(f"--user-data-dir={profile_dir}")
 
@@ -24,7 +38,13 @@ def cancelar_inscricoes_gmail():
     options.add_experimental_option('useAutomationExtension', False)
 
     # Iniciar o driver
-    driver = webdriver.Chrome(options=options)
+    try:
+        driver = webdriver.Chrome(options=options)
+    except Exception as e:
+        log.error(f"Não foi possível abrir o Chrome. Verifique se o ChromeDriver está instalado.")
+        log.error(f"Detalhes: {e}")
+        return
+
     wait = WebDriverWait(driver, 10)
 
     # Inicializar contadores no início (antes do try) para evitar erro ao pressionar Ctrl+C
@@ -34,30 +54,29 @@ def cancelar_inscricoes_gmail():
 
     try:
         # Acessar Gmail
-        print("Acessando Gmail...")
+        log.info("Acessando Gmail...")
         driver.get("https://mail.google.com")
 
-        print("\n⚠ AGUARDE: Faça login no Gmail se necessário...")
+        log.info("AGUARDE: Faça login no Gmail se necessário...")
         time.sleep(5)
 
         # Navegar para "Gerenciar inscrições" clicando no menu lateral
-        print("\nProcurando menu 'Gerenciar inscrições'...")
+        log.info("Procurando menu 'Gerenciar inscrições'...")
         try:
-            # Procurar e clicar no link "Gerenciar inscrições" no menu lateral
             menu_inscricoes = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(), 'Gerenciar inscrições')]")
             ))
-            print("Menu encontrado! Clicando...")
+            log.info("Menu encontrado! Clicando...")
             menu_inscricoes.click()
             time.sleep(3)
-            print("✓ Página 'Gerenciar inscrições' carregada!")
-        except Exception as e:
-            print(f"⚠ Não consegui encontrar o menu. Tentando via URL...")
+            log.info("Página 'Gerenciar inscrições' carregada!")
+        except Exception:
+            log.info("Não consegui encontrar o menu. Tentando via URL...")
             driver.get("https://mail.google.com/mail/u/0/#sub")
             time.sleep(3)
 
         while True:
-            print(f"\n--- Procurando botões 'Cancelar inscrição' (Canceladas: {inscricoes_canceladas}) ---")
+            log.info(f"--- Procurando botões 'Cancelar inscrição' (Canceladas: {inscricoes_canceladas}) ---")
 
             try:
                 # Procurar todos os elementos "Cancelar inscrição" na página
@@ -72,7 +91,7 @@ def cancelar_inscricoes_gmail():
                     # Antes de desistir, tentar scroll para carregar mais inscrições
                     if tentativas_scroll_sem_sucesso < 3:
                         tentativas_scroll_sem_sucesso += 1
-                        print(f"\n🔄 Nenhum botão visível. Tentando scroll para carregar mais... (Tentativa {tentativas_scroll_sem_sucesso}/3)")
+                        log.info(f"Nenhum botão visível. Tentando scroll para carregar mais... (Tentativa {tentativas_scroll_sem_sucesso}/3)")
 
                         # Scroll até o final da página
                         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -84,14 +103,14 @@ def cancelar_inscricoes_gmail():
 
                         continue  # Tentar procurar botões novamente
                     else:
-                        print("\n✓ Nenhuma inscrição encontrada após múltiplas tentativas de scroll!")
-                        print(f"Total de inscrições canceladas: {inscricoes_canceladas}")
+                        log.info("Nenhuma inscrição encontrada após múltiplas tentativas de scroll!")
+                        log.info(f"Total de inscrições canceladas: {inscricoes_canceladas}")
                         break
 
                 # Reset contador se encontrou botões
                 tentativas_scroll_sem_sucesso = 0
 
-                print(f"Encontrados {len(botoes)} botões de cancelar inscrição (visíveis e clicáveis)")
+                log.info(f"Encontrados {len(botoes)} botões de cancelar inscrição")
 
                 # Procurar o primeiro botão que NÃO está na lista de ignorados
                 primeiro_botao = None
@@ -108,7 +127,7 @@ def cancelar_inscricoes_gmail():
                             primeiro_botao = botao
                             nome_inscricao = nome_temp
                             break
-                    except:
+                    except Exception:
                         # Se não conseguir pegar o nome, tentar pelo índice
                         indice = botoes.index(botao)
                         nome_temp = f"inscricao_indice_{indice}"
@@ -122,7 +141,7 @@ def cancelar_inscricoes_gmail():
                 if primeiro_botao is None:
                     if tentativas_scroll_sem_sucesso < 3:
                         tentativas_scroll_sem_sucesso += 1
-                        print(f"\n🔄 Todos botões visíveis já foram ignorados. Tentando scroll para carregar mais... (Tentativa {tentativas_scroll_sem_sucesso}/3)")
+                        log.info(f"Todos botões visíveis já ignorados. Tentando scroll... (Tentativa {tentativas_scroll_sem_sucesso}/3)")
 
                         # Scroll até o final da página
                         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -134,9 +153,9 @@ def cancelar_inscricoes_gmail():
 
                         continue  # Tentar procurar botões novamente
                     else:
-                        print("\n✓ Todas as inscrições restantes redirecionam para site externo!")
-                        print(f"Total de inscrições canceladas: {inscricoes_canceladas}")
-                        print(f"Inscrições ignoradas (redirecionam para site): {len(inscricoes_ignoradas)}")
+                        log.info("Todas as inscrições restantes redirecionam para site externo!")
+                        log.info(f"Total canceladas: {inscricoes_canceladas}")
+                        log.info(f"Ignoradas (site externo): {len(inscricoes_ignoradas)}")
                         break
 
                 # Reset contador se encontrou botão válido
@@ -146,13 +165,13 @@ def cancelar_inscricoes_gmail():
                 driver.execute_script("arguments[0].scrollIntoView(true);", primeiro_botao)
                 time.sleep(0.3)
 
-                print(f"\nCancelando: {nome_inscricao}")
+                log.info(f"Cancelando: {nome_inscricao}")
 
                 # Tentar clicar (com fallback para JavaScript se falhar)
                 try:
                     primeiro_botao.click()
-                except Exception as click_error:
-                    print("Clique normal falhou, tentando com JavaScript...")
+                except Exception:
+                    log.info("Clique normal falhou, tentando com JavaScript...")
                     driver.execute_script("arguments[0].click();", primeiro_botao)
 
                 time.sleep(0.8)  # Otimizado: 1.5s → 0.8s
@@ -164,7 +183,7 @@ def cancelar_inscricoes_gmail():
                         "//*[contains(text(), 'acesse o site do remetente') or contains(text(), 'visit the sender')]")
 
                     if popup_texto and len(popup_texto) > 0:
-                        print("⚠ Gmail indica que precisa acessar site externo. Clicando em 'Bloquear'...")
+                        log.info("Gmail indica que precisa acessar site externo. Clicando em 'Bloquear'...")
 
                         # Procurar e clicar no botão "Bloquear" ou "Block"
                         try:
@@ -172,76 +191,67 @@ def cancelar_inscricoes_gmail():
                                 (By.XPATH, "//button[contains(., 'Bloquear') or contains(., 'Block')]")
                             ))
                             botao_bloquear.click()
-                            print("✓ Popup fechado. Pulando para próxima inscrição...")
+                            log.info("Popup fechado. Pulando para próxima inscrição...")
                             time.sleep(1)
-                        except:
-                            # Se não achar "Bloquear", tentar fechar o popup de outra forma
-                            print("Tentando fechar popup de outra forma...")
-                            driver.execute_script("document.querySelector('button').click();")
+                        except Exception:
+                            # Se não achar "Bloquear", recarregar para fechar o popup
+                            log.info("Botão 'Bloquear' não encontrado. Recarregando página...")
 
                         inscricoes_ignoradas.add(nome_inscricao)
                         driver.refresh()
-                        time.sleep(1)  # Otimizado: 2s → 1s
+                        time.sleep(1)
                         continue
-                except:
+                except Exception:
                     pass
 
                 # Verificar se foi redirecionado para site externo
                 url_atual = driver.current_url
                 if "mail.google.com" not in url_atual:
-                    print("⚠ Gmail redirecionou para site externo. Pulando para próxima...")
-                    inscricoes_ignoradas.add(nome_inscricao)  # Adicionar na lista de ignorados
+                    log.info("Gmail redirecionou para site externo. Pulando para próxima...")
+                    inscricoes_ignoradas.add(nome_inscricao)
                     driver.get("https://mail.google.com/mail/u/0/#sub")
-                    time.sleep(1)  # Otimizado: 2s → 1s
+                    time.sleep(1)
                     continue
 
                 # Confirmar o cancelamento no popup
                 try:
-                    print("Aguardando popup de confirmação...")
-                    # Procurar especificamente o botão AZUL de confirmação no popup
-                    # Usar XPath mais específico para pegar o botão correto
+                    log.info("Aguardando popup de confirmação...")
                     confirmar = wait.until(EC.element_to_be_clickable(
                         (By.XPATH, "//button[contains(@class, 'VfPpkd') and contains(., 'Cancelar inscrição')]")
                     ))
 
-                    # Garantir que é o botão azul (não o cinza "Cancelar")
                     if 'Cancelar inscrição' in confirmar.text or 'Unsubscribe' in confirmar.text:
                         confirmar.click()
-                        print("✓ Inscrição cancelada com sucesso!")
+                        log.info("Inscrição cancelada com sucesso!")
                         inscricoes_canceladas += 1
                         time.sleep(1)
                 except TimeoutException:
                     # Se não achar o popup, tenta procurar qualquer botão de confirmação
-                    print("Popup não encontrado, tentando confirmação alternativa...")
+                    log.info("Popup não encontrado, tentando confirmação alternativa...")
                     try:
-                        # Procurar botões que contenham "Cancelar inscrição"
                         botoes_confirmacao = driver.find_elements(By.XPATH,
                             "//button[contains(., 'Cancelar inscrição') or contains(., 'Unsubscribe')]")
 
-                        # Filtrar botões visíveis
                         botoes_visiveis = [b for b in botoes_confirmacao if b.is_displayed()]
 
                         if len(botoes_visiveis) > 0:
-                            # Clicar no último botão (geralmente é o de confirmação)
                             botoes_visiveis[-1].click()
-                            print("✓ Inscrição cancelada!")
-
-                        inscricoes_canceladas += 1
+                            log.info("Inscrição cancelada!")
+                            inscricoes_canceladas += 1
+                        else:
+                            log.info("Nenhum botão de confirmação encontrado. Pulando...")
                         time.sleep(1)
-                    except:
-                        print("✓ Cancelamento processado (confirmação não necessária)")
-                        inscricoes_canceladas += 1
-                        time.sleep(0.5)
+                    except Exception:
+                        log.info("Cancelamento não confirmado. Pulando...")
 
                 # Recarregar a página para atualizar a lista
                 driver.refresh()
                 time.sleep(1)  # Otimizado: 2s → 1s (PRINCIPAL otimização!)
 
             except Exception as e:
-                print(f"⚠ Erro: {str(e)}")
-                # Tentar recarregar e continuar
+                log.error(f"Erro: {str(e)}")
                 driver.refresh()
-                time.sleep(1.5)  # Otimizado: 3s → 1.5s
+                time.sleep(1.5)
 
                 # Se continuar dando erro, pode não haver mais inscrições
                 try:
@@ -249,25 +259,25 @@ def cancelar_inscricoes_gmail():
                         "//*[contains(text(), 'Cancelar inscrição') or contains(text(), 'Unsubscribe')]")
                     if not botoes_check:
                         break
-                except:
+                except Exception:
                     break
 
-        print(f"\n{'='*50}")
-        print(f"🎉 Automação finalizada!")
-        print(f"Total de inscrições canceladas: {inscricoes_canceladas}")
+        log.info(f"{'='*50}")
+        log.info("Automação finalizada!")
+        log.info(f"Total de inscrições canceladas: {inscricoes_canceladas}")
         if len(inscricoes_ignoradas) > 0:
-            print(f"Inscrições que redirecionam para site externo (ignoradas): {len(inscricoes_ignoradas)}")
-        print(f"{'='*50}")
+            log.info(f"Inscrições que redirecionam para site externo (ignoradas): {len(inscricoes_ignoradas)}")
+        log.info(f"{'='*50}")
 
     except KeyboardInterrupt:
-        print("\n\n⚠ Automação interrompida pelo usuário (Ctrl+C)")
-        print(f"Inscrições canceladas até agora: {inscricoes_canceladas}")
-        if 'inscricoes_ignoradas' in locals() and len(inscricoes_ignoradas) > 0:
-            print(f"Inscrições ignoradas (site externo): {len(inscricoes_ignoradas)}")
+        log.info("\nAutomação interrompida pelo usuário (Ctrl+C)")
+        log.info(f"Inscrições canceladas até agora: {inscricoes_canceladas}")
+        if len(inscricoes_ignoradas) > 0:
+            log.info(f"Inscrições ignoradas (site externo): {len(inscricoes_ignoradas)}")
     except Exception as e:
-        print(f"\n❌ Erro fatal: {str(e)}")
+        log.error(f"Erro fatal: {str(e)}")
     finally:
-        print("\n")
+        print("")
         resposta = input("Deseja fechar o navegador? (s/n): ")
         if resposta.lower() == 's':
             driver.quit()

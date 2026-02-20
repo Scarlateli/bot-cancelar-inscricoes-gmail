@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Navegar para o diretório do script (funciona de qualquer lugar)
+cd "$(dirname "$0")"
+
 echo "🔧 Configurando Bot de Cancelamento de Inscrições Gmail..."
 echo ""
 
