@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import os
+import sys
 import logging
 
 # Configurar logging (console + arquivo)
@@ -47,18 +48,22 @@ def cancelar_inscricoes_gmail():
 
     wait = WebDriverWait(driver, 10)
 
-    # Timeout para carregamento de página (evita travar em loading infinito)
-    driver.set_page_load_timeout(10)
-
     # Inicializar contadores no início (antes do try) para evitar erro ao pressionar Ctrl+C
     inscricoes_canceladas = 0
     inscricoes_ignoradas = set()
     tentativas_scroll_sem_sucesso = 0  # Contador para evitar loop infinito de scroll
 
     try:
-        # Acessar Gmail
+        # Acessar Gmail (timeout maior só para o carregamento inicial)
         log.info("Acessando Gmail...")
-        driver.get("https://mail.google.com")
+        driver.set_page_load_timeout(30)
+        try:
+            driver.get("https://mail.google.com")
+        except Exception:
+            log.info("Timeout no carregamento inicial, tentando parar e continuar...")
+            driver.execute_script("window.stop()")
+        # Restaurar timeout rápido para as demais operações
+        driver.set_page_load_timeout(10)
 
         log.info("AGUARDE: Faça login no Gmail se necessário...")
         time.sleep(5)
@@ -286,11 +291,15 @@ def cancelar_inscricoes_gmail():
         log.error(f"Erro fatal: {str(e)}")
     finally:
         print("")
-        resposta = input("Deseja fechar o navegador? (s/n): ")
-        if resposta.lower() == 's':
-            driver.quit()
+        if sys.stdin.isatty():
+            resposta = input("Deseja fechar o navegador? (s/n): ")
+            if resposta.lower() == 's':
+                driver.quit()
+            else:
+                print("Navegador mantido aberto. Feche manualmente quando quiser.")
         else:
-            print("Navegador mantido aberto. Feche manualmente quando quiser.")
+            print("Fechando navegador automaticamente...")
+            driver.quit()
 
 if __name__ == "__main__":
     print("="*50)
@@ -303,5 +312,23 @@ if __name__ == "__main__":
     print("4. Para parar, pressione Ctrl+C a qualquer momento")
     print("\n" + "="*50)
 
-    input("\n▶ Pressione ENTER para iniciar...")
+    if sys.stdin.isatty():
+        sys.stdout.flush()
+        time.sleep(0.5)  # Aguarda o terminal do VSCode estabilizar
+        sigint_count = 0
+        while True:
+            try:
+                input("\n▶ Pressione ENTER para iniciar...")
+                break
+            except KeyboardInterrupt:
+                sigint_count += 1
+                if sigint_count >= 2:
+                    print("\nSaindo...")
+                    sys.exit(0)
+                # Primeiro SIGINT pode ser espúrio (bug do terminal VSCode)
+    else:
+        print("\n⚠️  AVISO: Execute pelo terminal para usar o modo interativo.")
+        print("   Use: ./executar.sh  ou  python3 bot_email.py")
+        print("   Iniciando em 3 segundos...")
+        time.sleep(3)
     cancelar_inscricoes_gmail()
