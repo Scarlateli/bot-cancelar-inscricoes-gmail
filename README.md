@@ -33,7 +33,7 @@ Pra parar a qualquer momento: `Ctrl+C`.
 
 - Inscrições que exigem cancelamento via site externo não são canceladas (o bot pula essas)
 - Depende da estrutura atual da interface do Gmail — se o Google mudar o layout, pode quebrar
-- A Pasta "Gerenciar Inscrições" fica visivel clicando na aba "Mais", ainda preciso implementar a ação de clicar nessa aba, pois, caso o selenium não encontre o "Gerenciar Inscrições", ele irá conseguir entrar na pasta, indo pela URL, o que pode acabar demorando alguns segundos a mais.
+- O bot clica automaticamente em "Mais" no sidebar para acessar "Gerenciar inscrições". Caso não encontre, usa a URL como fallback.
 
 ## Problemas comuns
 
