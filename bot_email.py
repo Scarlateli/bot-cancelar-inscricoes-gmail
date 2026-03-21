@@ -71,6 +71,11 @@ def cancelar_inscricoes_gmail():
         # Navegar para "Gerenciar inscrições" clicando no menu lateral
         log.info("Procurando menu 'Gerenciar inscrições'...")
         try:
+            botao_mais = wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//*[contains(text(), 'Mais')]")
+            ))
+            botao_mais.click()
+            time.sleep(1)
             menu_inscricoes = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//*[contains(text(), 'Gerenciar inscrições')]")
             ))
